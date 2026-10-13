@@ -71,9 +71,55 @@ kaggle datasets download -d <owner>/<dataset-slug> -p data/raw --unzip
 
 ### Option B: Download in Kaggle, train in Kaggle, evaluate here
 
-1. Upload or attach the dataset as a Kaggle Dataset.
-2. Run preprocessing, indexing, baseline inference, and RL training in a Kaggle notebook.
-3. Save model checkpoints, tokenizer files, configuration, metrics, and the processed dataset/index as a Kaggle notebook output or Dataset version.
+1. Create a Kaggle Notebook and turn on **GPU** in the notebook settings.
+2. Add the NQ Kaggle Dataset as an input. Do not copy the raw dataset into the Git repository.
+3. Clone or upload this project into the notebook, then install dependencies:
+
+```bash
+!pip install -q -r requirements.txt
+```
+
+4. Inspect the attached dataset before choosing the input file:
+
+```python
+from pathlib import Path
+for path in Path('/kaggle/input').rglob('*'):
+	if path.is_file():
+		print(path)
+```
+
+5. Prepare the fixed subsets and passages. Replace the input path with the actual file found in Step 4:
+
+```bash
+!python scripts/prepare_nq.py --input /kaggle/input/<dataset>/<train-file> \
+	--output data/processed/train.jsonl --split train --limit 5000
+!python scripts/prepare_nq.py --input /kaggle/input/<dataset>/<validation-file> \
+	--output data/processed/validation.jsonl --split validation --limit 500
+!python scripts/prepare_passages.py --input /kaggle/input/<dataset>/<train-file> \
+	--output data/processed/passages.jsonl --max-records 5000
+```
+
+If the Kaggle mirror does not contain `document_text`, attach a Wikipedia passage dataset instead and convert it to JSONL records with `id` and `text`. NQ questions and a separate Wikipedia corpus are then used together.
+
+6. Run the dependency-free rollout test:
+
+```bash
+!python scripts/run_rollout_smoke.py --passages data/processed/passages.jsonl
+```
+
+7. Run Qwen0.5B inference on a small validation sample. The first run downloads the model into Kaggle's cache:
+
+```bash
+!python scripts/run_qwen_baseline.py \
+	--questions data/processed/validation.jsonl \
+	--passages data/processed/passages.jsonl \
+	--output /kaggle/working/artifacts/qwen05b_rollouts.jsonl \
+	--limit 100
+```
+
+8. Save model checkpoints, tokenizer files, configuration, metrics, trajectories, the processed subset, and the index as a Kaggle notebook output or Dataset version. Parts 1 and 2 are complete when preprocessing, retrieval, smoke rollout, and trajectory logging all work.
+
+9. Part 3 will add RL training. Do not call the Qwen baseline output an RL-trained model; it is the pre-RL comparison required for the experiment.
 4. Download the output archive from the Kaggle **Output** tab, or use the Kaggle API:
 
 ```bash
@@ -114,7 +160,7 @@ At minimum, report Exact Match, token F1, valid-search rate, average number of s
 
 ## Current Status
 
-Documentation and feasibility scope are defined. Implementation starts after the team confirms the dataset source, Qwen0.5B variant, compute target, and initial NQ subset size.
+Parts 1 and 2 are implemented in `src/`, `scripts/`, and `tests/`. The next step is to run the Kaggle preprocessing and baseline commands, inspect the actual NQ schema, and save the first trajectory artifacts. Parts 3 and 4 cover RL training and final comparison/evaluation.
 
 ## References
 
