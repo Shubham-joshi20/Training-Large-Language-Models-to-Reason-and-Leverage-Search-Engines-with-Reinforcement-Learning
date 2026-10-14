@@ -145,12 +145,16 @@ def extract_passages(input_path: str | Path, output_path: str | Path,
     for index, record in enumerate(read_records(input_path)):
         if index >= max_records:
             break
-        document = _first_value(record, ("document_text", "context", "passage", "text"))
+        document = _first_value(
+            record,
+            ("document_text", "context", "passage", "text", "long_answers", "long_answer"),
+        )
         if isinstance(document, list):
             document = " ".join(str(item) for item in document)
         if not document:
             continue
-        words = str(document).split()
+        document = re.sub(r"<[^>]+>", " ", str(document))
+        words = document.split()
         for offset in range(0, len(words), words_per_passage):
             chunk = " ".join(words[offset:offset + words_per_passage]).strip()
             if chunk:

@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from search_rl.data import answer_exact_match, answer_token_f1, read_records
+from search_rl.data import answer_exact_match, answer_token_f1, extract_passages, read_records
 from search_rl.retrieval import BM25Retriever
 from search_rl.rollout import SearchEnvironment
 
@@ -30,6 +30,17 @@ class CoreTests(unittest.TestCase):
             data_file = input_directory / "train.jsonl"
             data_file.write_text(json.dumps({"question": "Q", "answers": ["A"]}) + "\n", encoding="utf-8")
             self.assertEqual(read_records(input_directory)[0]["question"], "Q")
+
+    def test_extract_passages_supports_nq_long_answers(self):
+        with tempfile.TemporaryDirectory() as directory:
+            input_path = Path(directory) / "nq.jsonl"
+            output_path = Path(directory) / "passages.jsonl"
+            input_path.write_text(
+                json.dumps({"question": "Q", "long_answers": "<P>A useful passage.</P>"}) + "\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(extract_passages(input_path, output_path), 1)
+            self.assertIn("A useful passage", output_path.read_text(encoding="utf-8"))
 
 
     def test_rollout_inserts_evidence_and_stops_at_answer(self):
