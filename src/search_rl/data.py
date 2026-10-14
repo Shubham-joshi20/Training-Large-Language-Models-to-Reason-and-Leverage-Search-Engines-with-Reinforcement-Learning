@@ -85,8 +85,26 @@ def normalize_record(record: dict[str, Any], index: int, split: str) -> dict[str
 
 
 def read_records(path: str | Path) -> list[dict[str, Any]]:
-    """Read JSONL, JSON, or CSV records from a Kaggle dataset export."""
+    """Read JSONL, JSON, or CSV records from a Kaggle dataset export.
+
+    A Kaggle input is often passed as its directory. If that directory contains
+    exactly one supported data file, use it automatically.
+    """
     path = Path(path)
+    if path.is_dir():
+        candidates = sorted(
+            item for item in path.rglob("*")
+            if item.is_file() and item.suffix.lower() in {".jsonl", ".json", ".csv"}
+        )
+        if not candidates:
+            raise FileNotFoundError(f"No .jsonl, .json, or .csv file found under {path}")
+        if len(candidates) > 1:
+            names = ", ".join(str(item) for item in candidates)
+            raise ValueError(
+                "Input directory contains multiple supported files. Pass the exact "
+                f"file with --input. Found: {names}"
+            )
+        path = candidates[0]
     if path.suffix.lower() == ".csv":
         with path.open(newline="", encoding="utf-8-sig") as handle:
             return list(csv.DictReader(handle))

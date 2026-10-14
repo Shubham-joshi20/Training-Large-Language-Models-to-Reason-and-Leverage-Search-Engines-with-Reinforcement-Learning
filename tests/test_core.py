@@ -1,10 +1,12 @@
 import sys
+import json
+import tempfile
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from search_rl.data import answer_exact_match, answer_token_f1
+from search_rl.data import answer_exact_match, answer_token_f1, read_records
 from search_rl.retrieval import BM25Retriever
 from search_rl.rollout import SearchEnvironment
 
@@ -21,6 +23,13 @@ class CoreTests(unittest.TestCase):
             {"id": "b", "text": "The Pacific Ocean is very large."},
         ])
         self.assertEqual(retriever.search("who wrote Hamlet", top_k=1)[0]["id"], "a")
+
+    def test_read_records_accepts_directory_with_one_data_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            input_directory = Path(directory)
+            data_file = input_directory / "train.jsonl"
+            data_file.write_text(json.dumps({"question": "Q", "answers": ["A"]}) + "\n", encoding="utf-8")
+            self.assertEqual(read_records(input_directory)[0]["question"], "Q")
 
 
     def test_rollout_inserts_evidence_and_stops_at_answer(self):
