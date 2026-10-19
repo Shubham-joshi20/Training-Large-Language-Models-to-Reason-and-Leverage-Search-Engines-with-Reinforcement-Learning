@@ -1,8 +1,11 @@
 """Run Qwen0.5B search-aware inference and save JSONL trajectories.
 
-Example:
+Examples:
 python scripts/run_qwen_baseline.py --questions data/processed/validation.jsonl \
   --passages data/processed/passages.jsonl --output artifacts/baseline.jsonl
+python scripts/run_qwen_baseline.py --questions data/processed/validation.jsonl \
+    --passages data/processed/passages.jsonl --adapter artifacts/qwen05b-search-rl \
+    --output artifacts/rl_rollouts.jsonl
 """
 
 from __future__ import annotations
@@ -28,6 +31,7 @@ def main() -> None:
     parser.add_argument("--passages", required=True)
     parser.add_argument("--output", default="artifacts/qwen05b_rollouts.jsonl")
     parser.add_argument("--model", default="Qwen/Qwen2.5-0.5B-Instruct")
+    parser.add_argument("--adapter", default=None)
     parser.add_argument("--limit", type=int, default=100)
     parser.add_argument("--max-new-tokens", type=int, default=256)
     args = parser.parse_args()
@@ -35,9 +39,14 @@ def main() -> None:
     tokenizer = AutoTokenizer.from_pretrained(args.model)
     model = AutoModelForCausalLM.from_pretrained(
         args.model,
-        torch_dtype="auto",
+        dtype="auto",
         device_map="auto",
     )
+    if args.adapter:
+        from peft import PeftModel
+
+        model = PeftModel.from_pretrained(model, args.adapter)
+        model.eval()
     retriever = BM25Retriever.from_jsonl(args.passages)
     environment = SearchEnvironment(retriever, max_searches=2, top_k=3)
     output_path = Path(args.output)
