@@ -126,10 +126,15 @@ def main() -> None:
     tokenizer = AutoTokenizer.from_pretrained(args.model)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
-    model = AutoModelForCausalLM.from_pretrained(
-        args.model,
-        dtype=torch.bfloat16 if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else "auto",
+    cuda_available = torch.cuda.is_available()
+    gpu_capability = torch.cuda.get_device_capability()[0] if cuda_available else 0
+    use_bfloat16 = (
+        cuda_available
+        and gpu_capability >= 8
+        and torch.cuda.is_bf16_supported()
     )
+    model_dtype = torch.bfloat16 if use_bfloat16 else torch.float16 if cuda_available else torch.float32
+    model = AutoModelForCausalLM.from_pretrained(args.model, dtype=model_dtype)
     lora_config = LoraConfig(
         r=8,
         lora_alpha=16,
@@ -154,8 +159,8 @@ def main() -> None:
         report_to="none",
         remove_unused_columns=False,
         gradient_checkpointing=True,
-        fp16=torch.cuda.is_available() and not torch.cuda.is_bf16_supported(),
-        bf16=torch.cuda.is_available() and torch.cuda.is_bf16_supported(),
+        fp16=cuda_available and not use_bfloat16,
+        bf16=use_bfloat16,
     )
     trainer = GRPOTrainer(
         model=model,
