@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -93,6 +94,9 @@ def main() -> None:
     if args.limit < 1 or args.max_steps < 1:
         raise ValueError("--limit and --max-steps must be positive")
 
+    # GRPOTrainer expects one process per GPU; notebook execution must expose one GPU.
+    os.environ.setdefault("CUDA_VISIBLE_DEVICES", "0")
+
     try:
         import torch
         from datasets import Dataset
@@ -124,7 +128,7 @@ def main() -> None:
         tokenizer.pad_token = tokenizer.eos_token
     model = AutoModelForCausalLM.from_pretrained(
         args.model,
-        torch_dtype=torch.bfloat16 if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else "auto",
+        dtype=torch.bfloat16 if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else "auto",
     )
     lora_config = LoraConfig(
         r=8,
