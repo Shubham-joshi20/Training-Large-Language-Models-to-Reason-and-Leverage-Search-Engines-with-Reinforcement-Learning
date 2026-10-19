@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from search_rl.data import answer_exact_match, answer_token_f1, extract_passages, read_records
 from search_rl.retrieval import BM25Retriever
+from search_rl.rewards import score_trajectory, summarize_results
 from search_rl.rollout import SearchEnvironment
 
 
@@ -57,6 +58,29 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(trajectory.answer, "Shakespeare")
         self.assertEqual(len(trajectory.searches), 1)
         self.assertIn("<information>", calls[1])
+
+    def test_reward_combines_em_f1_and_penalizes_invalid_format(self):
+        valid = score_trajectory("Shakespeare", ["William Shakespeare"], "answer", 2)
+        invalid = score_trajectory("wrong", ["Shakespeare"], "no_valid_action", 0)
+        self.assertGreater(valid["reward"], 0.0)
+        self.assertEqual(invalid["valid_format"], False)
+        self.assertLess(invalid["reward"], 0.0)
+
+    def test_summary_reports_search_and_reward_statistics(self):
+        results = [
+            {"answer": "Paris", "answers": ["Paris"], "termination": "answer", "searches": []},
+            {"answer": "wrong", "answers": ["London"], "termination": "no_valid_action", "searches": [{}]},
+        ]
+        summary = summarize_results(results)
+        self.assertEqual(summary["examples"], 2)
+        self.assertEqual(summary["search_rate"], 0.5)
+        self.assertEqual(summary["valid_format_rate"], 0.5)
+
+    def test_summary_accepts_older_rollout_metrics_without_gold_answers(self):
+        summary = summarize_results([
+            {"exact_match": 1.0, "token_f1": 1.0, "termination": "answer", "searches": []},
+        ])
+        self.assertEqual(summary["reward"], 1.0)
 
 
 if __name__ == "__main__":

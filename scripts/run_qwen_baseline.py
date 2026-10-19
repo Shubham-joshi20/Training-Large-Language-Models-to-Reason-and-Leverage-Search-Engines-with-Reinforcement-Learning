@@ -64,8 +64,9 @@ def main() -> None:
             trajectory = environment.run(item["question"], generate)
             result = trajectory.to_dict()
             result["id"] = item.get("id", str(index))
-            result["exact_match"] = answer_exact_match(trajectory.answer, item.get("answers", []))
-            result["token_f1"] = answer_token_f1(trajectory.answer, item.get("answers", []))
+            result["answers"] = item.get("answers", [])
+            result["exact_match"] = answer_exact_match(trajectory.answer, result["answers"])
+            result["token_f1"] = answer_token_f1(trajectory.answer, result["answers"])
             target.write(json.dumps(result, ensure_ascii=True) + "\n")
             print(f"{index + 1}: EM={result['exact_match']:.0f} F1={result['token_f1']:.3f}")
 
