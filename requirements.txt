@@ -5,3 +5,4 @@ datasets
 tqdm
 trl>=0.17.0
 peft>=0.14.0
+torchao>=0.16.0
