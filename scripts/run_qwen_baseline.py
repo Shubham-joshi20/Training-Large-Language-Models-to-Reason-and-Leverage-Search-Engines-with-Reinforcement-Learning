@@ -91,6 +91,7 @@ def main() -> None:
                     "question": item["question"],
                     "text": generated_answer,
                     "answer": generated_answer,
+                    "mode": "plain",
                     "searches": [],
                     "termination": "answer",
                     "latency_seconds": 0.0,

@@ -54,6 +54,17 @@ def summarize_results(results: list[dict[str, Any]]) -> dict[str, float | int]:
     scored = []
     for result in results:
         if result.get("answers"):
+            if result.get("mode") == "plain":
+                scored.append(
+                    score_trajectory(
+                        result.get("answer", ""),
+                        result["answers"],
+                        "answer",
+                        0,
+                        text=None,
+                    )
+                )
+                continue
             scored.append(
                 score_trajectory(
                     result.get("answer", ""),
