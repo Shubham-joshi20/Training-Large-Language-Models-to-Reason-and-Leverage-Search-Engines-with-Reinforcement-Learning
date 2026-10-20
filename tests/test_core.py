@@ -59,6 +59,13 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(len(trajectory.searches), 1)
         self.assertIn("<information>", calls[1])
 
+    def test_prompt_requires_search_r1_tag_order(self):
+        prompt = SearchEnvironment(BM25Retriever([{"id": "a", "text": "evidence"}])).build_prompt("Q")
+        self.assertIn("<think>", prompt)
+        self.assertIn("<search>", prompt)
+        self.assertIn("<answer>", prompt)
+        self.assertIn("Never use <solution>", prompt)
+
     def test_reward_combines_em_f1_and_penalizes_invalid_format(self):
         valid = score_trajectory("Shakespeare", ["William Shakespeare"], "answer", 2)
         invalid = score_trajectory("wrong", ["Shakespeare"], "no_valid_action", 0)
