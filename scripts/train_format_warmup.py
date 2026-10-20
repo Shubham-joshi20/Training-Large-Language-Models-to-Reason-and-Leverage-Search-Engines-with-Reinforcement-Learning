@@ -26,13 +26,16 @@ def make_example(record: dict, eos_token: str) -> dict[str, str]:
     question = str(record["question"]).strip()
     answer = str(record["answers"][0]).strip()
     return {
-        "text": (
+        "prompt": (
             "Question: " + question + "\n"
-            "Use only these tags in order: <think>, optional <search>, and <answer>.\n"
+            "Respond using only this protocol: <think>reasoning</think>, "
+            "optional <search>query</search>, then <answer>short answer</answer>.\n"
+        ),
+        "completion": (
             "<think>I need factual evidence for this question.</think>"
             "<search>" + question + "</search>"
             "<answer>" + answer + "</answer>" + eos_token
-        )
+        ),
     }
 
 
@@ -85,7 +88,7 @@ def main() -> None:
         logging_steps=1,
         save_steps=args.max_steps,
         report_to="none",
-        dataset_text_field="text",
+        completion_only_loss=True,
         max_length=256,
         fp16=cuda_available and not use_bfloat16,
         bf16=use_bfloat16,
