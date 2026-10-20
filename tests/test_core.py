@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from search_rl.data import answer_exact_match, answer_token_f1, extract_passages, read_records
 from search_rl.retrieval import BM25Retriever
 from search_rl.rewards import score_trajectory, summarize_results
+from search_rl.prompts import format_chat_prompt
 from search_rl.rollout import SEARCH_R1_SPECIAL_TOKENS, SearchEnvironment
 
 
@@ -70,6 +71,12 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(len(SEARCH_R1_SPECIAL_TOKENS), 8)
         self.assertIn("<think>", SEARCH_R1_SPECIAL_TOKENS)
         self.assertIn("<answer>", SEARCH_R1_SPECIAL_TOKENS)
+
+    def test_prompt_formatter_falls_back_without_chat_template(self):
+        class TokenizerWithoutChatTemplate:
+            chat_template = None
+
+        self.assertEqual(format_chat_prompt(TokenizerWithoutChatTemplate(), "Q"), "Q")
 
     def test_reward_combines_em_f1_and_penalizes_invalid_format(self):
         valid = score_trajectory("Shakespeare", ["William Shakespeare"], "answer", 2)

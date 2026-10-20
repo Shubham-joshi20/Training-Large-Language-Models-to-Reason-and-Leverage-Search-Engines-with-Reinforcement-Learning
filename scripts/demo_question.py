@@ -17,6 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from search_rl.retrieval import BM25Retriever
+from search_rl.prompts import format_chat_prompt
 from search_rl.rollout import SEARCH_R1_SPECIAL_TOKENS, SearchEnvironment
 
 
@@ -46,7 +47,7 @@ def main() -> None:
     environment = SearchEnvironment(BM25Retriever.from_jsonl(args.passages), max_searches=2, top_k=3)
 
     def generate(prompt: str) -> str:
-        encoded = tokenizer(prompt, return_tensors="pt").to(model.device)
+        encoded = tokenizer(format_chat_prompt(tokenizer, prompt), return_tensors="pt").to(model.device)
         with torch.no_grad():
             generated = model.generate(
                 **encoded,
@@ -72,6 +73,7 @@ def main() -> None:
     print("\nFINAL ANSWER:")
     print(trajectory.answer)
     print("\nTERMINATION:", trajectory.termination)
+    print("FORMAT_VALID:", "<think>" in trajectory.text and "<answer>" in trajectory.text)
 
 
 if __name__ == "__main__":

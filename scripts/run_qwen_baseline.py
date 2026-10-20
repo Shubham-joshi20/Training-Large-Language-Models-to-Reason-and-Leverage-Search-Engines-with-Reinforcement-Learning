@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from search_rl.data import answer_exact_match, answer_token_f1
 from search_rl.retrieval import BM25Retriever
+from search_rl.prompts import format_chat_prompt
 from search_rl.rollout import SEARCH_R1_SPECIAL_TOKENS, SearchEnvironment
 
 
@@ -62,7 +63,7 @@ def main() -> None:
             item = json.loads(line)
 
             def generate(prompt: str) -> str:
-                encoded = tokenizer(prompt, return_tensors="pt").to(model.device)
+                encoded = tokenizer(format_chat_prompt(tokenizer, prompt), return_tensors="pt").to(model.device)
                 with torch.no_grad():
                     generated = model.generate(
                         **encoded,

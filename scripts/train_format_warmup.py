@@ -20,6 +20,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from search_rl.data import read_records
+from search_rl.prompts import format_chat_prompt
 from search_rl.rollout import SEARCH_R1_SPECIAL_TOKENS
 
 
@@ -66,7 +67,10 @@ def main() -> None:
     records = [record for record in read_records(args.train_data) if record.get("answers")][:args.limit]
     if not records:
         raise ValueError("No usable training records with answers were found")
-    dataset = Dataset.from_list([make_example(record, tokenizer.eos_token) for record in records])
+    examples = [make_example(record, tokenizer.eos_token) for record in records]
+    for example in examples:
+        example["prompt"] = format_chat_prompt(tokenizer, example["prompt"])
+    dataset = Dataset.from_list(examples)
     cuda_available = torch.cuda.is_available()
     capability = torch.cuda.get_device_capability()[0] if cuda_available else 0
     use_bfloat16 = cuda_available and capability >= 8 and torch.cuda.is_bf16_supported()

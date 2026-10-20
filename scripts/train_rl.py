@@ -23,6 +23,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from search_rl.data import read_records
+from search_rl.prompts import format_chat_prompt
 from search_rl.retrieval import BM25Retriever
 from search_rl.rewards import score_trajectory
 from search_rl.rollout import SEARCH_R1_SPECIAL_TOKENS
@@ -132,6 +133,7 @@ def main() -> None:
     tokenizer.add_special_tokens({"additional_special_tokens": SEARCH_R1_SPECIAL_TOKENS})
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
+    dataset = dataset.map(lambda item: {"prompt": format_chat_prompt(tokenizer, item["prompt"])})
     cuda_available = torch.cuda.is_available()
     gpu_capability = torch.cuda.get_device_capability()[0] if cuda_available else 0
     use_bfloat16 = (
