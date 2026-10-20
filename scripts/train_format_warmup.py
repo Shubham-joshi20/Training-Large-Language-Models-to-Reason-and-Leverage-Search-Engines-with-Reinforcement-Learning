@@ -20,6 +20,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from search_rl.data import read_records
+from search_rl.rollout import SEARCH_R1_SPECIAL_TOKENS
 
 
 def make_example(record: dict, eos_token: str) -> dict[str, str]:
@@ -59,6 +60,7 @@ def main() -> None:
         raise SystemExit("Run `pip install -r requirements.txt` first.") from error
 
     tokenizer = AutoTokenizer.from_pretrained(args.model)
+    tokenizer.add_special_tokens({"additional_special_tokens": SEARCH_R1_SPECIAL_TOKENS})
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     records = [record for record in read_records(args.train_data) if record.get("answers")][:args.limit]
@@ -70,6 +72,7 @@ def main() -> None:
     use_bfloat16 = cuda_available and capability >= 8 and torch.cuda.is_bf16_supported()
     dtype = torch.bfloat16 if use_bfloat16 else torch.float16 if cuda_available else torch.float32
     model = AutoModelForCausalLM.from_pretrained(args.model, dtype=dtype)
+    model.resize_token_embeddings(len(tokenizer))
     lora_config = LoraConfig(
         r=8,
         lora_alpha=16,

@@ -17,7 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from search_rl.retrieval import BM25Retriever
-from search_rl.rollout import SearchEnvironment
+from search_rl.rollout import SEARCH_R1_SPECIAL_TOKENS, SearchEnvironment
 
 
 def main() -> None:
@@ -32,8 +32,11 @@ def main() -> None:
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
-    tokenizer = AutoTokenizer.from_pretrained(args.model)
+    tokenizer_path = args.adapter or args.model
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+    tokenizer.add_special_tokens({"additional_special_tokens": SEARCH_R1_SPECIAL_TOKENS})
     model = AutoModelForCausalLM.from_pretrained(args.model, dtype="auto", device_map="auto")
+    model.resize_token_embeddings(len(tokenizer))
     if args.adapter:
         from peft import PeftModel
 

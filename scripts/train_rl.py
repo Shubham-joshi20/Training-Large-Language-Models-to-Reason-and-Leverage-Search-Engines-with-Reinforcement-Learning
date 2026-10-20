@@ -25,6 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from search_rl.data import read_records
 from search_rl.retrieval import BM25Retriever
 from search_rl.rewards import score_trajectory
+from search_rl.rollout import SEARCH_R1_SPECIAL_TOKENS
 
 ANSWER_PATTERN = re.compile(r"<answer>\s*(.*?)\s*</answer>", re.IGNORECASE | re.DOTALL)
 SEARCH_PATTERN = re.compile(r"<search>.*?</search>", re.IGNORECASE | re.DOTALL)
@@ -126,7 +127,9 @@ def main() -> None:
         for record in records
     ])
 
-    tokenizer = AutoTokenizer.from_pretrained(args.model)
+    tokenizer_path = args.init_adapter or args.model
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+    tokenizer.add_special_tokens({"additional_special_tokens": SEARCH_R1_SPECIAL_TOKENS})
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     cuda_available = torch.cuda.is_available()
@@ -138,6 +141,7 @@ def main() -> None:
     )
     model_dtype = torch.bfloat16 if use_bfloat16 else torch.float16 if cuda_available else torch.float32
     model = AutoModelForCausalLM.from_pretrained(args.model, dtype=model_dtype)
+    model.resize_token_embeddings(len(tokenizer))
     lora_config = LoraConfig(
         r=8,
         lora_alpha=16,

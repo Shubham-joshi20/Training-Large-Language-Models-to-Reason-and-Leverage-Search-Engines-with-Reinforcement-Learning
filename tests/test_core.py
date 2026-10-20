@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from search_rl.data import answer_exact_match, answer_token_f1, extract_passages, read_records
 from search_rl.retrieval import BM25Retriever
 from search_rl.rewards import score_trajectory, summarize_results
-from search_rl.rollout import SearchEnvironment
+from search_rl.rollout import SEARCH_R1_SPECIAL_TOKENS, SearchEnvironment
 
 
 class CoreTests(unittest.TestCase):
@@ -65,6 +65,11 @@ class CoreTests(unittest.TestCase):
         self.assertIn("<search>", prompt)
         self.assertIn("<answer>", prompt)
         self.assertIn("Never use <solution>", prompt)
+
+    def test_search_r1_protocol_tokens_are_explicit(self):
+        self.assertEqual(len(SEARCH_R1_SPECIAL_TOKENS), 8)
+        self.assertIn("<think>", SEARCH_R1_SPECIAL_TOKENS)
+        self.assertIn("<answer>", SEARCH_R1_SPECIAL_TOKENS)
 
     def test_reward_combines_em_f1_and_penalizes_invalid_format(self):
         valid = score_trajectory("Shakespeare", ["William Shakespeare"], "answer", 2)

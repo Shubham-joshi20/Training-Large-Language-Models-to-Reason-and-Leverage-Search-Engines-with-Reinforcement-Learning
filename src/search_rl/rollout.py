@@ -9,6 +9,10 @@ from typing import Callable
 
 SEARCH_PATTERN = re.compile(r"<search>\s*(.*?)\s*</search>", re.IGNORECASE | re.DOTALL)
 ANSWER_PATTERN = re.compile(r"<answer>\s*(.*?)\s*</answer>", re.IGNORECASE | re.DOTALL)
+SEARCH_R1_SPECIAL_TOKENS = [
+    "<think>", "</think>", "<search>", "</search>",
+    "<information>", "</information>", "<answer>", "</answer>",
+]
 
 
 @dataclass
