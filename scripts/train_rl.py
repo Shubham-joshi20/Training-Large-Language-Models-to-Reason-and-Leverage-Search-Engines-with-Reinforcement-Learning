@@ -38,7 +38,13 @@ def passage_context(retriever: BM25Retriever, question: str, top_k: int = 3) -> 
     return f"<information>\n{evidence}\n</information>"
 
 
-def build_prompt(question: str, evidence: str) -> str:
+def build_prompt(question: str, evidence: str, structured_output: bool = False) -> str:
+    if not structured_output:
+        return (
+            "Answer the question using the evidence below. Return only the shortest "
+            "correct answer, with no explanation or special tags.\n\n"
+            f"Question: {question}\n{evidence}"
+        )
     return (
         "Follow this exact output protocol and do not use any other tags: "
         "first write <think>brief reasoning</think>, optionally write "
@@ -61,23 +67,24 @@ def completion_text(completion: Any) -> str:
     return str(completion)
 
 
-def reward_function(completions: list[Any], answers: list[list[str]] | None = None, **_: Any) -> list[float]:
-    answers = answers or [[] for _ in completions]
-    rewards: list[float] = []
-    for completion, gold_answers in zip(completions, answers):
-        text = completion_text(completion)
-        answer_match = ANSWER_PATTERN.search(text)
-        prediction = answer_match.group(1).strip() if answer_match else text.strip()
-        termination = "answer" if answer_match else "no_valid_action"
-        score = score_trajectory(
-            prediction,
-            gold_answers,
-            termination,
-            len(SEARCH_PATTERN.findall(text)),
-            text=text,
-        )
-        rewards.append(float(score["reward"]))
-    return rewards
+def make_reward_function(structured_output: bool):
+    def reward_function(completions: list[Any], answers: list[list[str]] | None = None, **_: Any) -> list[float]:
+        answers_for_batch = answers or [[] for _ in completions]
+        rewards: list[float] = []
+        for completion, gold_answers in zip(completions, answers_for_batch):
+            text = completion_text(completion)
+            answer_match = ANSWER_PATTERN.search(text)
+            prediction = answer_match.group(1).strip() if answer_match else text.strip()
+            if structured_output:
+                termination = "answer" if answer_match else "no_valid_action"
+                search_count = len(SEARCH_PATTERN.findall(text))
+                score = score_trajectory(prediction, gold_answers, termination, search_count, text=text)
+            else:
+                score = score_trajectory(prediction, gold_answers, "answer", 0)
+            rewards.append(float(score["reward"]))
+        return rewards
+
+    return reward_function
 
 
 def parse_args() -> argparse.Namespace:
@@ -91,6 +98,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-steps", type=int, default=20)
     parser.add_argument("--num-generations", type=int, default=2)
     parser.add_argument("--top-k", type=int, default=3)
+    parser.add_argument("--structured-output", action="store_true")
     return parser.parse_args()
 
 
@@ -122,6 +130,7 @@ def main() -> None:
             "prompt": build_prompt(
                 str(record["question"]),
                 passage_context(retriever, str(record["question"]), args.top_k),
+                args.structured_output,
             ),
             "answers": record["answers"],
         }
@@ -176,7 +185,7 @@ def main() -> None:
     )
     trainer = GRPOTrainer(
         model=model,
-        reward_funcs=reward_function,
+        reward_funcs=make_reward_function(args.structured_output),
         args=training_args,
         train_dataset=dataset,
         processing_class=tokenizer,
@@ -194,6 +203,7 @@ def main() -> None:
             "top_k": args.top_k,
             "mode": "fixed-context GRPO with optional format warm-up",
             "init_adapter": args.init_adapter,
+            "structured_output": args.structured_output,
         }, indent=2),
         encoding="utf-8",
     )

@@ -10,6 +10,7 @@ from search_rl.data import answer_exact_match, answer_token_f1, extract_passages
 from search_rl.retrieval import BM25Retriever
 from search_rl.rewards import score_trajectory, summarize_results
 from search_rl.prompts import format_chat_prompt
+from search_rl.data import answer_exact_match
 from search_rl.rollout import SEARCH_R1_SPECIAL_TOKENS, SearchEnvironment
 
 

@@ -15,9 +15,6 @@ import json
 import sys
 from pathlib import Path
 
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
-
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from search_rl.data import answer_exact_match, answer_token_f1
@@ -33,9 +30,13 @@ def main() -> None:
     parser.add_argument("--output", default="artifacts/qwen05b_rollouts.jsonl")
     parser.add_argument("--model", default="Qwen/Qwen2.5-0.5B-Instruct")
     parser.add_argument("--adapter", default=None)
+    parser.add_argument("--plain-output", action="store_true")
     parser.add_argument("--limit", type=int, default=100)
     parser.add_argument("--max-new-tokens", type=int, default=256)
     args = parser.parse_args()
+
+    import torch
+    from transformers import AutoModelForCausalLM, AutoTokenizer
 
     tokenizer_path = args.adapter or args.model
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
@@ -74,8 +75,29 @@ def main() -> None:
                 new_tokens = generated[0][encoded["input_ids"].shape[1]:]
                 return tokenizer.decode(new_tokens, skip_special_tokens=True)
 
-            trajectory = environment.run(item["question"], generate)
-            result = trajectory.to_dict()
+            if args.plain_output:
+                passages = retriever.search(item["question"], top_k=3)
+                evidence = "\n".join(
+                    f"[{passage.get('id')}] {passage.get('text', '')}"
+                    for passage in passages
+                )
+                plain_prompt = (
+                    "Answer the question using the evidence below. Return only the "
+                    "shortest correct answer, with no explanation or special tags.\n\n"
+                    f"Question: {item['question']}\n<information>\n{evidence}\n</information>"
+                )
+                generated_answer = generate(plain_prompt).strip()
+                result = {
+                    "question": item["question"],
+                    "text": generated_answer,
+                    "answer": generated_answer,
+                    "searches": [],
+                    "termination": "answer",
+                    "latency_seconds": 0.0,
+                }
+            else:
+                trajectory = environment.run(item["question"], generate)
+                result = trajectory.to_dict()
             result["id"] = item.get("id", str(index))
             result["answers"] = item.get("answers", [])
             result["exact_match"] = answer_exact_match(trajectory.answer, result["answers"])
