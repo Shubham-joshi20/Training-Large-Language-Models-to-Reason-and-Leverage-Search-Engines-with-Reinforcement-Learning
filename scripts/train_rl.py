@@ -84,6 +84,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--passages", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--model", default="Qwen/Qwen2.5-0.5B-Instruct")
+    parser.add_argument("--init-adapter", default=None)
     parser.add_argument("--limit", type=int, default=100)
     parser.add_argument("--max-steps", type=int, default=20)
     parser.add_argument("--num-generations", type=int, default=2)
@@ -102,7 +103,7 @@ def main() -> None:
     try:
         import torch
         from datasets import Dataset
-        from peft import LoraConfig
+        from peft import LoraConfig, PeftModel
         from transformers import AutoModelForCausalLM, AutoTokenizer
         from trl import GRPOConfig, GRPOTrainer
     except ImportError as error:
@@ -144,6 +145,9 @@ def main() -> None:
         target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
         task_type="CAUSAL_LM",
     )
+    if args.init_adapter:
+        model = PeftModel.from_pretrained(model, args.init_adapter, is_trainable=True)
+        lora_config = None
     output_path = Path(args.output)
     output_path.mkdir(parents=True, exist_ok=True)
     training_args = GRPOConfig(
@@ -182,7 +186,8 @@ def main() -> None:
             "max_steps": args.max_steps,
             "num_generations": args.num_generations,
             "top_k": args.top_k,
-            "mode": "fixed-context GRPO smoke test",
+            "mode": "fixed-context GRPO with optional format warm-up",
+            "init_adapter": args.init_adapter,
         }, indent=2),
         encoding="utf-8",
     )
