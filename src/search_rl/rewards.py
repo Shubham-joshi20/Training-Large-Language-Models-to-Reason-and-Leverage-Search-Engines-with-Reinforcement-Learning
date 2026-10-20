@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from typing import Any, Iterable
 
 from .data import answer_exact_match, answer_token_f1
+
+THINK_PATTERN = re.compile(r"<think>\s*.*?\s*</think>", re.IGNORECASE | re.DOTALL)
 
 
 @dataclass(frozen=True)
@@ -20,13 +23,15 @@ def score_trajectory(
     termination: str,
     search_count: int,
     config: RewardConfig | None = None,
+    text: str | None = None,
 ) -> dict[str, float | bool]:
     """Return correctness, penalties, and the final scalar reward."""
     config = config or RewardConfig()
     exact_match = answer_exact_match(prediction, answers)
     token_f1 = answer_token_f1(prediction, answers)
     correctness = 0.5 * exact_match + 0.5 * token_f1
-    valid_format = termination == "answer"
+    has_think_block = text is None or bool(THINK_PATTERN.search(text))
+    valid_format = termination == "answer" and has_think_block
     format_penalty = config.format_penalty if not valid_format else 0.0
     repeated_searches = max(0, search_count - 1)
     search_penalty = repeated_searches * config.repeated_search_penalty
@@ -55,6 +60,7 @@ def summarize_results(results: list[dict[str, Any]]) -> dict[str, float | int]:
                     result["answers"],
                     result.get("termination", "unknown"),
                     len(result.get("searches", [])),
+                    text=result.get("text"),
                 )
             )
             continue

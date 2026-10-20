@@ -38,7 +38,8 @@ class SearchEnvironment:
 
     def build_prompt(self, question: str, evidence: str = "") -> str:
         return (
-            "Answer the question. Think briefly and search only when useful. "
+            "Answer the question. Start with a brief reasoning block inside "
+            "<think>...</think>. Search only when useful. "
             "Use <search>query</search> for a search request and finish with "
             "<answer>short answer</answer>.\n\n"
             f"Question: {question}\n{evidence}"

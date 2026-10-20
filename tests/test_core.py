@@ -66,6 +66,17 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(invalid["valid_format"], False)
         self.assertLess(invalid["reward"], 0.0)
 
+    def test_reward_requires_think_block_when_text_is_available(self):
+        without_think = score_trajectory(
+            "Shakespeare", ["Shakespeare"], "answer", 0, text="<answer>Shakespeare</answer>"
+        )
+        with_think = score_trajectory(
+            "Shakespeare", ["Shakespeare"], "answer", 0,
+            text="<think>I recall the author.</think><answer>Shakespeare</answer>",
+        )
+        self.assertFalse(without_think["valid_format"])
+        self.assertTrue(with_think["valid_format"])
+
     def test_summary_reports_search_and_reward_statistics(self):
         results = [
             {"answer": "Paris", "answers": ["Paris"], "termination": "answer", "searches": []},

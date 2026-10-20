@@ -38,9 +38,9 @@ def passage_context(retriever: BM25Retriever, question: str, top_k: int = 3) -> 
 
 def build_prompt(question: str, evidence: str) -> str:
     return (
-        "Answer the question using the available evidence. Think briefly. "
-        "You may write a search query using <search>query</search>. "
-        "Always finish with only the short answer inside "
+        "Answer the question using the available evidence. Start with a brief "
+        "reasoning block inside <think>...</think>. You may write a search query "
+        "using <search>query</search>. Always finish with only the short answer inside "
         "<answer>short answer</answer>.\n\n"
         f"Question: {question}\n{evidence}"
     )
@@ -71,6 +71,7 @@ def reward_function(completions: list[Any], answers: list[list[str]] | None = No
             gold_answers,
             termination,
             len(SEARCH_PATTERN.findall(text)),
+            text=text,
         )
         rewards.append(float(score["reward"]))
     return rewards
