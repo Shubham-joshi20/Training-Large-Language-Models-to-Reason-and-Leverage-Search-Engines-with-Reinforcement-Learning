@@ -22,20 +22,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from search_rl.data import read_records
 
 
-def make_example(record: dict) -> dict[str, str]:
+def make_example(record: dict, eos_token: str) -> dict[str, str]:
     question = str(record["question"]).strip()
     answer = str(record["answers"][0]).strip()
     return {
         "text": (
             "Question: " + question + "\n"
-            "Output exactly in this format:\n"
-            "<think>brief reasoning</think>"
-            "<search>search query</search>"
-            "<answer>short answer</answer>\n"
-            "Response:\n"
+            "Use only these tags in order: <think>, optional <search>, and <answer>.\n"
             "<think>I need factual evidence for this question.</think>"
             "<search>" + question + "</search>"
-            "<answer>" + answer + "</answer>"
+            "<answer>" + answer + "</answer>" + eos_token
         )
     }
 
@@ -59,13 +55,13 @@ def main() -> None:
     except ImportError as error:
         raise SystemExit("Run `pip install -r requirements.txt` first.") from error
 
-    records = [record for record in read_records(args.train_data) if record.get("answers")][:args.limit]
-    if not records:
-        raise ValueError("No usable training records with answers were found")
-    dataset = Dataset.from_list([make_example(record) for record in records])
     tokenizer = AutoTokenizer.from_pretrained(args.model)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
+    records = [record for record in read_records(args.train_data) if record.get("answers")][:args.limit]
+    if not records:
+        raise ValueError("No usable training records with answers were found")
+    dataset = Dataset.from_list([make_example(record, tokenizer.eos_token) for record in records])
     cuda_available = torch.cuda.is_available()
     capability = torch.cuda.get_device_capability()[0] if cuda_available else 0
     use_bfloat16 = cuda_available and capability >= 8 and torch.cuda.is_bf16_supported()
